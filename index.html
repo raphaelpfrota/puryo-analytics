@@ -167,10 +167,13 @@
     /* Headbars / sticky toolbars in Quick Look */
     .topbar, .toolbar { position: static !important; }
   }
-@media (max-width: 1024px) {
-  aside.sidebar, nav.nav, .sidebar, .nav { 
-    display:none !important;
-    /* (pode manter as outras linhas aqui se quiser) */
+/* FIX: liberar o drawer no mobile mesmo com os resets anteriores */
+@media (max-width:1024px){
+  .drawer.open{
+    display:block !important;
+    visibility:visible !important;
+    width:100% !important;     /* ocupa a tela */
+    max-width:unset !important;
   }
 }
 </style>
