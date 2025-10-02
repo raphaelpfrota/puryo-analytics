@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Puryo • Análises</title>
+
+<style>
+  :root{
+    --bg:#f6f7f8; --panel:#ffffff; --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto}
+
+  /* Layout base (sidebar + main) */
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  .sidebar{background:#fff;border-right:1px solid var(--line);padding:14px 12px;height:100vh;position:sticky;top:0}
+  .sb-title{font-weight:700;font-size:18px;margin:6px 10px 12px}
+  .nav{display:flex;flex-direction:column;gap:4px}
+  .nav a{padding:10px 12px;border-radius:8px;color:#374151;font-size:14px;text-decoration:none}
+  .nav a.active{background:#eef2ff;border:1px solid #e0e7ff;color:#111827}
+  .nav a:hover{background:#f3f4f6}
+
+  /* Topbar */
+  .topbar{background:#111827;color:#d1d5db;padding:10px 16px;display:flex;align-items:center;gap:12px}
+  .search{flex:1;max-width:720px;margin:0 auto}
+  .search input{width:100%;background:#374151;border:1px solid #4b5563;border-radius:999px;color:#e5e7eb;
+    padding:8px 14px;font-size:14px;outline:none}
+  .actions{display:flex;align-items:center;gap:10px}
+  .icon-btn{width:30px;height:30px;border-radius:999px;background:#374151;display:grid;place-items:center;color:#e5e7eb;font-size:14px}
+  .avatar{display:inline-flex;align-items:center;gap:8px;background:#374151;color:#fff;border-radius:999px;padding:6px 10px}
+
+  /* Conteúdo */
+  .content{padding:16px}
+  .breadcrumbs{font-size:12px;color:var(--muted);margin:18px 0 6px}
+  h1{margin:0 0 12px;font-size:28px;letter-spacing:-0.02em}
+
+  /* Período: botão + popover */
+  .controls{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .period{position:relative}
+  .pill{background:#eef2ff;border:1px solid #e0e7ff;border-radius:999px;color:#111827;padding:8px 12px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .caret{border: solid #111827;border-width:0 1.8px 1.8px 0;display:inline-block;padding:3px;transform:rotate(45deg)}
+  .popover{
+    position:absolute;left:0;top:calc(100% + 6px);z-index:20;min-width:320px;background:#fff;border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.08);padding:10px;display:none
+  }
+  .popover.open{display:block}
+  .preset-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+  .preset{padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;cursor:pointer;background:#f9fafb}
+  .preset:hover{background:#f3f4f6}
+  .custom{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+  .custom label{font-size:12px;color:var(--muted)}
+  .custom input[type="date"]{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px}
+  .pop-actions{display:flex;gap:8px;justify-content:flex-end}
+  .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer}
+  .btn.primary{background:#111827;color:#fff;border-color:#111827}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+  .k-title{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+  .k-value{margin-top:8px;font-size:20px;font-weight:700}
+  .badge-up{display:inline-flex;gap:6px;align-items:center;border-radius:999px;padding:2px 8px;font-size:11px;border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}
+  .badge-up svg{width:12px;height:12px}
+
+  /* Painel do gráfico */
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px}
+  .panel h3{margin:0 0 8px;font-size:14px}
+  .chart-wrap{position:relative}
+  canvas{width:100%;height:340px}
+  .footer-note{margin-top:8px;color:var(--muted);font-size:12px}
+  .chartjs-tooltip{
+    position:absolute;pointer-events:none;transform:translate(-50%,-120%);
+    background:#111827;color:#fff;border-radius:8px;padding:6px 8px;font-size:12px;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,.2);
+    border:1px solid #2e3440;
+  }
+
+  /* Painel de Controle (flutuante) — discreto */
+  .fab{
+    position:fixed;right:12px;bottom:12px;z-index:40;background:#111827cc;color:#e5e7eb;border:1px solid #2b2f36;
+    width:40px;height:40px;border-radius:12px;font-size:18px;display:grid;place-items:center;
+    box-shadow:0 6px 18px rgba(0,0,0,.2); backdrop-filter:saturate(120%) blur(2px); cursor:pointer;
+    transition:all .18s ease;
+  }
+  .fab:hover{transform:translateY(-1px);opacity:.95}
+  .drawer{position:fixed;inset:0;background:rgba(0,0,0,.22);display:none;z-index:50}
+  .drawer.open{display:block}
+  .sheet{
+    position:absolute;right:0;top:0;height:100%;width:min(460px,92%);background:#fff;border-left:1px solid var(--line);
+    padding:16px;overflow:auto
+  }
+  .sheet h2{margin:0 0 4px}
+  .hint{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .bar{height:1px;background:var(--line);margin:10px 0}
+
+  .form{display:grid;gap:12px}
+  .form .group{display:grid;gap:10px}
+  .form label{font-size:12px;color:var(--muted)}
+  .form input{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 10px;font-size:14px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .actions2{display:flex;gap:8px;justify-content:space-between;margin-top:8px}
+  .left-actions{display:flex;gap:8px}
+  .right-actions{display:flex;gap:8px}
+
+  /* Responsivo */
+  @media (max-width:980px){ .app{grid-template-columns:0 1fr} .sidebar{display:none} }
+  @media (max-width:900px){ .kpis{grid-template-columns:1fr 1fr} }
+  @media (max-width:560px){
+    h1{font-size:22px}
+    .kpis{grid-template-columns:1fr}
+    canvas{height:260px}
+    .search{display:none}
+  }
+
+
+/* ===== HARD MOBILE RESET (<= 1024px) ===== */
+html, body { margin:0; padding:0; }
+img, video, canvas, iframe { max-width:100%; height:auto; display:block; }
+:root { --gap: 16px; }
+
+/* Base containers */
+.container, .wrapper, .content, .panel, main, .main, section {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: clamp(12px, 4vw, 24px);
+}
+
+.cards, .grid, .gallery {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: 1fr;
+}
+
+/* Kill horizontal scroll culprits */
+[class*="row"] { display: block; }
+[class*="col-"], [class*="column"] { width: 100% !important; }
+
+/* Tables */
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive table { min-width: 640px; border-collapse: collapse; }
+
+/* Mobile-only overrides */
+@media (max-width: 1024px) {
+  html, body { width:100%; overflow-x:hidden !important; }
+  /* Hide side UI */
+  aside.sidebar, nav.nav, #drawer.drawer, .sidebar, .nav, .drawer { 
+    display:none !important; 
+    width:0 !important; 
+    max-width:0 !important; 
+    visibility:hidden !important; 
+  }
+  /* Force single column layout */
+  .app, .layout, .wrapper, .container {
+    display:block !important;
+    grid-template-columns: 1fr !important;
+  }
+  .content, .panel, main, .main, section {
+    margin:0 !important;
+    padding-inline: clamp(12px, 4vw, 20px) !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+  /* Break any fixed widths/min-widths inline */
+  [style*="min-width"] { min-width: 0 !important; }
+  [style*="width:"] { width: auto !important; max-width: 100% !important; }
+  /* Cards & boxes */
+  .card, .box, .tile { width: auto !important; margin: 12px 0 !important; }
+  /* Headbars / sticky toolbars in Quick Look */
+  .topbar, .toolbar { position: static !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+<!-- SIDEBAR -->
+<aside class="sidebar">
+<div class="sb-title">Puryo</div>
+<nav class="nav">
+<a href="#">Home</a>
+<a class="active" href="#">Analytics</a>
+<a href="#">Orders</a>
+<a href="#">Products</a>
+<a href="#">Customers</a>
+<a href="#">Marketing</a>
+<a href="#">Discounts</a>
+<a href="#">Apps</a>
+</nav>
+</aside>
+<!-- MAIN -->
+<main>
+<!-- TOPBAR -->
+<div class="topbar">
+<div class="icon-btn" title="Menu">≡</div>
+<div class="search"><input placeholder="Pesquisar" type="text"/></div>
+<div class="actions">
+<div class="icon-btn" title="Ajuda">?</div>
+<div class="icon-btn" title="Notificações">🔔</div>
+<div class="avatar">Puryo</div>
+</div>
+</div>
+<div class="content">
+<div class="breadcrumbs">Análises &gt; Painéis</div>
+<h1>Análises</h1>
+<!-- CONTROLES -->
+<div class="controls">
+<div class="period">
+<button class="pill" id="periodBtn"><span id="periodLabel">Últimos 30 dias</span> <i class="caret"></i></button>
+<div class="popover" id="pop">
+<div class="preset-list" id="presetList">
+<div class="preset" data-preset="today">Hoje</div>
+<div class="preset" data-preset="yesterday">Ontem</div>
+<div class="preset" data-preset="7">Últimos 7 dias</div>
+<div class="preset" data-preset="30">Últimos 30 dias</div>
+<div class="preset" data-preset="90">Últimos 90 dias</div>
+<div class="preset" data-preset="365">Últimos 365 dias</div>
+</div>
+<div class="custom">
+<div>
+<label for="from">De:</label>
+<input id="from" type="date"/>
+</div>
+<div>
+<label for="to">Até:</label>
+<input id="to" type="date"/>
+</div>
+</div>
+<div class="pop-actions">
+<button class="btn" id="cancelPop">Cancelar</button>
+<button class="btn primary" id="applyPop">Aplicar</button>
+</div>
+</div>
+</div>
+<div class="pill" style="cursor:default;background:#f3f4f6;border-color:#e5e7eb">BRL R$</div>
+<div style="margin-left:auto;color:#9ca3af;font-size:12px">Atualizado às 11:23</div>
+</div>
+<!-- KPIs -->
+<div class="kpis">
+<div class="card">
+<div class="k-title">
+<span>Vendas brutas</span>
+<span class="badge-up" id="trendBadge">
+<svg fill="none" viewbox="0 0 24 24"><path d="M4 14l4-4 4 4 8-8" id="trendPath" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+<span id="trendPct">+0.0%</span>
+</span>
+</div>
+<div class="k-value" id="gross">R$ 0,00</div>
+</div>
+<div class="card">
+<div class="k-title"><span>Taxa de clientes recorrentes</span></div>
+<div class="k-value" id="repeatRate">0.0%</div>
+</div>
+<div class="card">
+<div class="k-title"><span>Pedidos processados</span></div>
+<div class="k-value" id="processed">0</div>
+</div>
+<div class="card">
+<div class="k-title"><span>Pedidos</span></div>
+<div class="k-value" id="orders">0</div>
+</div>
+</div>
+<!-- GRÁFICO -->
+<div class="panel">
+<h3>Total de vendas ao longo do tempo</h3>
+<div class="chart-wrap" id="chartWrap">
+<canvas id="chart"></canvas>
+<div class="chartjs-tooltip" id="tooltip" style="opacity:0"></div>
+</div>
+<div class="footer-note">Período aplicado: <span id="rangeLabel"></span></div>
+</div>
+</div>
+</main>
+</div>
+<!-- FAB + Drawer (Painel de Controle) -->
+<button class="fab" id="openCfg" title="Configurações">⚙</button>
+<div class="drawer" id="drawer">
+<div class="sheet">
+<h2>Painel de Controle</h2>
+<div class="hint">Ajuste e clique <b>Aplicar</b>. As configurações ficam salvas no aparelho.</div>
+<div class="bar"></div>
+<div class="form">
+<!-- Grupo: Período -->
+<div class="group">
+<strong>Período</strong>
+<div class="row2">
+<div>
+<label>Data inicial</label>
+<input id="cfgFrom" type="date"/>
+</div>
+<div>
+<label>Data final (com hora)</label>
+<input id="cfgTo" type="datetime-local"/>
+</div>
+</div>
+</div>
+<!-- Grupo: Parâmetros e Overrides -->
+<div class="group">
+<strong>Métricas &amp; Overrides</strong>
+<div>
+<label>Base (30 dias) – Vendas brutas (R$)</label>
+<input id="cfgGross" placeholder="ex: 36000" step="50" type="number"/>
+</div>
+<div class="row2">
+<div>
+<label>Total do período (R$) — opcional (manual)</label>
+<input id="cfgManualTotal" placeholder="deixe vazio para usar a base de 30 dias" step="10" type="number"/>
+</div>
+<div>
+<label>Forçar total do último dia (R$) — opcional</label>
+<input id="cfgLastDay" placeholder="ex: 1800 para 'Hoje'" step="10" type="number"/>
+</div>
+</div>
+<div class="row2">
+<div>
+<label>Ticket médio (R$)</label>
+<input id="cfgAov" placeholder="ex: 110" step="1" type="number"/>
+</div>
+<div>
+<label>% pedidos processados</label>
+<input id="cfgProcessed" placeholder="ex: 92" step="0.1" type="number"/>
+</div>
+</div>
+<div class="row2">
+<div>
+<label>% clientes recorrentes</label>
+<input id="cfgRepeat" placeholder="ex: 7" step="0.1" type="number"/>
+</div>
+<div>
+<label>—</label>
+<input disabled="" placeholder="Campos acima já cobrem os ajustes" style="opacity:.4"/>
+</div>
+</div>
+</div>
+<div class="actions2">
+<div class="left-actions">
+<button class="btn" id="clearOverrides">Limpar overrides</button>
+<button class="btn" id="closeCfg">Fechar</button>
+</div>
+<div class="right-actions">
+<button class="btn primary" id="applyCfg">Aplicar</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+<script>
+/* ====== Config / Estado ====== */
+const DEFAULT_CFG = {
+  grossBase30: 36500,      // base para escalar períodos
+  processedPct: 92,
+  repeatPct: 7,
+  aov: 110                 // ticket médio (R$)
+};
+
+function saveCfg(){ localStorage.setItem('puryo_cfg_final', JSON.stringify(state.cfg)); }
+function loadCfg(){ try{ return JSON.parse(localStorage.getItem('puryo_cfg_final')); }catch{ return null; } }
+function saveOverrides(){ localStorage.setItem('puryo_overrides', JSON.stringify(state.overrides)); }
+function loadOverrides(){ try{ return JSON.parse(localStorage.getItem('puryo_overrides')) || { totalPeriod:null, lastDayTotal:null }; }catch{ return { totalPeriod:null, lastDayTotal:null }; } }
+
+// merge defaults com storage (evita NaN quando houver chaves antigas)
+const loadedCfg = loadCfg() || {};
+const mergedCfg = Object.assign({}, DEFAULT_CFG, loadedCfg);
+
+const state = {
+  cfg: mergedCfg,
+  range: null,   // {from:Date,to:Date,label:String}
+  data: [],      // série atual [{x:Date,total:Number}]
+  overrides: loadOverrides() // { totalPeriod, lastDayTotal }
+};
+
+// Migração defensiva: garante AOV válido
+if (state.cfg.aov == null || isNaN(Number(state.cfg.aov)) || Number(state.cfg.aov) <= 0) {
+  state.cfg.aov = DEFAULT_CFG.aov;
+  saveCfg();
+}
+
+const BRL = n => n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmt = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+function dayStart(d){ const s=new Date(d); s.setHours(0,0,0,0); return s; }
+function daysDiff(a,b){ return Math.round((dayStart(b)-dayStart(a))/(24*3600*1000)); }
+
+/* Fração efetiva de dias: dias completos + fração do último dia (para "Hoje") */
+function effectiveDays(from,to){
+  const startFrom = dayStart(from);
+  const startTo   = dayStart(to);
+  const fullDays  = Math.round((startTo - startFrom)/(24*3600*1000)); // dias completos
+  const lastFrac  = (to - startTo)/(24*3600*1000);                    // fração do último dia
+  return fullDays + (lastFrac > 0 ? lastFrac : 1);
+}
+
+/* ====== Série determinística (sem Math.random) ====== */
+function hashCode(str){
+  let h=0; for(let i=0;i<str.length;i++){ h=(Math.imul(31,h)+str.charCodeAt(i))|0; } return h>>>0;
+}
+function seededNoise(seed){ return (hashCode(seed) % 1000) / 1000; } // 0..1 fixo
+
+function generateSeries(from,to,totalDesired){
+  const labelsCount = daysDiff(from,to) + 1;
+  const arr = [];
+
+  for(let i=0;i<labelsCount;i++){
+    const day = new Date(from.getFullYear(),from.getMonth(),from.getDate()+i);
+    const t = i/labelsCount;
+
+    const wave = (Math.sin(2*Math.PI*(t*1.1)) + 0.7*Math.sin(2*Math.PI*(t*2.1+0.2)) + 0.45*Math.sin(2*Math.PI*(t*3.2+0.35)));
+    const norm = (wave + 2.0) / 4.0;
+
+    const jitter = seededNoise(day.toISOString()) * 0.4 - 0.2; // -0.2..+0.2
+    const w = Math.max(0.05, 0.6*norm + 0.4*(0.5+0.5*jitter));
+    arr.push({x:day, w});
+  }
+
+  const sumW = arr.reduce((s,d)=>s+d.w,0) || 1;
+  let series = arr.map(d=>({x:d.x,total:(d.w/sumW)*totalDesired}));
+  series = series.map(d=>({x:d.x,total:Math.max(0,Math.round(d.total))}));
+
+  const diff = totalDesired - series.reduce((s,d)=>s+d.total,0);
+  if(series.length) series[series.length-1].total += diff;
+
+  return series;
+}
+
+function applyOverrides(series, totalDesired){
+  const n = series.length;
+  if(n===0) return series;
+
+  if(state.overrides.lastDayTotal != null && n>0){
+    const forced = Math.max(0, Number(state.overrides.lastDayTotal)||0);
+    const finalTotal = Math.max(totalDesired, forced);
+    const restTotal = finalTotal - forced;
+
+    if(n===1){
+      series[0].total = forced;
+      return series;
+    }
+
+    const sumOthers = series.slice(0,n-1).reduce((s,d)=>s+d.total,0) || 1;
+    for(let i=0;i<n-1;i++){
+      series[i].total = Math.max(0, Math.round(series[i].total / sumOthers * restTotal));
+    }
+    const sumFirst = series.slice(0,n-1).reduce((s,d)=>s+d.total,0);
+    series[n-1].total = Math.max(0, finalTotal - sumFirst);
+  }
+  return series;
+}
+
+function kpisFromSeries(series){
+  const gross = series.reduce((s,d)=>s+d.total,0);
+  const aov = Number(state.cfg.aov);
+  const safeAov = (isNaN(aov) || aov <= 0) ? DEFAULT_CFG.aov : aov;
+
+  const orders = Math.max(1, Math.round(gross / safeAov));
+  const processed = Math.round(orders * (state.cfg.processedPct/100));
+
+  return {gross, orders, processed, repeat: state.cfg.repeatPct};
+}
+
+const ctx = document.getElementById('chart').getContext('2d');
+const gradient = ctx.createLinearGradient(0,0,0,320);
+gradient.addColorStop(0,'rgba(37,99,235,0.24)');
+gradient.addColorStop(1,'rgba(37,99,235,0.03)');
+
+const wrap = document.getElementById('chartWrap');
+const extTip = document.getElementById('tooltip');
+
+const chart = new Chart(ctx,{
+  type:'line',
+  data:{labels:[],datasets:[{
+    label:'Vendas', data:[],
+    fill:true, backgroundColor:gradient, borderColor:'#3b82f6',
+    borderWidth:3, tension:0.42, pointRadius:0, pointHoverRadius:4
+  }]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    scales:{
+      x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,autoSkipPadding:12}},
+      y:{grid:{color:'#eef0f2'},ticks:{callback:v=>'R$ '+v.toLocaleString('pt-BR')}}
+    },
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        enabled:false,
+        external:(ctx)=>{
+          const t = ctx.tooltip;
+          if(!t || t.opacity===0){ extTip.style.opacity=0; return; }
+          const i = t.dataPoints[0].dataIndex;
+          const label = chart.data.labels[i];
+          const val = chart.data.datasets[0].data[i];
+
+          extTip.innerHTML = `<b>${label}</b><div style="opacity:.9">${BRL(val)}</div>`;
+          extTip.style.opacity = 1;
+
+          const rect = wrap.getBoundingClientRect();
+          const x = t.caretX; const y = t.caretY;
+          const pad = 8;
+          const tipH = extTip.offsetHeight || 40;
+          let left = x, top = y - 16;
+          left = Math.max(pad, Math.min(left, rect.width - pad));
+          top  = Math.max(pad, Math.min(top,  rect.height - tipH - pad));
+          extTip.style.left = left + 'px';
+          extTip.style.top  = top  + 'px';
+        }
+      }
+    }
+  }
+});
+
+const grossEl = document.getElementById('gross');
+const repeatEl = document.getElementById('repeatRate');
+const processedEl = document.getElementById('processed');
+const ordersEl = document.getElementById('orders');
+const trendPct = document.getElementById('trendPct');
+const trendBadge = document.getElementById('trendBadge');
+const trendPath = document.getElementById('trendPath');
+const rangeLabel = document.getElementById('rangeLabel');
+
+const periodBtn   = document.getElementById('periodBtn');
+const pop         = document.getElementById('pop');
+const presetList  = document.getElementById('presetList');
+const periodLabel = document.getElementById('periodLabel');
+const fromEl      = document.getElementById('from');
+const toEl        = document.getElementById('to');
+const applyPop    = document.getElementById('applyPop');
+const cancelPop   = document.getElementById('cancelPop');
+
+function applyRange(from, to, label){
+  state.range = {from,to,label};
+
+  const baseTotal = state.overrides.totalPeriod != null
+    ? Math.max(0, Number(state.overrides.totalPeriod)||0)
+    : Math.max(0, Math.round((state.cfg.grossBase30/30) * effectiveDays(from,to)));
+
+  let series = generateSeries(from, to, baseTotal);
+  series = applyOverrides(series, baseTotal);
+
+  state.data = series;
+  const k = kpisFromSeries(series);
+  grossEl.textContent = BRL(k.gross);
+  repeatEl.textContent = k.repeat.toFixed(1)+'%';
+  processedEl.textContent = k.processed.toString();
+  ordersEl.textContent = k.orders.toString();
+
+  const ms = to - from;
+  const prevTo = new Date(from); prevTo.setTime(prevTo.getTime()-1);
+  const prevFrom = new Date(prevTo.getTime()-ms);
+
+  const prevBaseTotal = state.overrides.totalPeriod != null
+    ? Math.max(0, Number(state.overrides.totalPeriod)||0) * 0.92
+    : Math.max(0, Math.round((state.cfg.grossBase30/30) * effectiveDays(prevFrom,prevTo) * 0.92));
+
+  let prev = generateSeries(prevFrom, prevTo, prevBaseTotal);
+
+  const prevGross = prev.reduce((s,d)=>s+d.total,0);
+  const deltaPct = prevGross===0 ? 0 : ((k.gross-prevGross)/prevGross)*100;
+  trendPct.textContent = (deltaPct>=0?'+':'') + deltaPct.toFixed(1) + '%';
+  trendBadge.style.background = deltaPct>=0 ? '#ecfdf5' : '#fef2f2';
+  trendBadge.style.borderColor = deltaPct>=0 ? '#a7f3d0' : '#fecaca';
+  trendBadge.style.color = deltaPct>=0 ? '#065f46' : '#991b1b';
+  trendPath.setAttribute('d', deltaPct>=0 ? 'M4 14l4-4 4 4 8-8' : 'M4 10l4 4 4-4 8 8');
+
+  chart.data.labels = series.map(d=>fmt(d.x));
+  chart.data.datasets[0].data = series.map(d=>d.total);
+  chart.update();
+
+  rangeLabel.textContent = label ?? `${fmt(from)} – ${fmt(to)}`;
+}
+
+presetList.addEventListener('click',(e)=>{
+  const item = e.target.closest('.preset'); if(!item) return;
+  const preset = item.dataset.preset;
+
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0,0,0,0);
+
+  let from = new Date(todayStart);
+  let to   = new Date(todayStart);
+  let label = '';
+
+  if(preset==='today'){
+    to = new Date();
+    label='Hoje';
+  } else if(preset==='yesterday'){
+    from.setDate(from.getDate()-1);
+    to.setDate(to.getDate()-1);
+    label='Ontem';
+  } else {
+    const days=Number(preset)||30;
+    from.setDate(from.getDate()-(days-1));
+    label=`Últimos ${days} dias`;
+  }
+
+  fromEl.valueAsDate = from;
+  toEl.value = to.toISOString().split('T')[0];
+
+  periodLabel.textContent = label;
+  applyRange(from,to,label);
+  pop.classList.remove('open');
+});
+
+applyPop.addEventListener('click', ()=>{
+  if(!fromEl.value || !toEl.value) return;
+  const from = new Date(fromEl.value);
+  const to = new Date(toEl.value);
+  if(from>to) return;
+  const label = `${fmt(from)} – ${fmt(to)}`;
+  periodLabel.textContent = label;
+  applyRange(from,to,label);
+  pop.classList.remove('open');
+});
+periodBtn.addEventListener('click', (e)=>{ e.stopPropagation(); pop.classList.toggle('open'); });
+document.addEventListener('click', (e)=>{ if(!pop.contains(e.target) && e.target!==periodBtn) pop.classList.remove('open'); });
+cancelPop.addEventListener('click', ()=> pop.classList.remove('open'));
+
+const drawer     = document.getElementById('drawer');
+const openCfg    = document.getElementById('openCfg');
+const closeCfg   = document.getElementById('closeCfg');
+const applyCfg   = document.getElementById('applyCfg');
+const clearOverrides = document.getElementById('clearOverrides');
+
+const cfgFrom    = document.getElementById('cfgFrom');
+const cfgTo      = document.getElementById('cfgTo');
+const cfgGross   = document.getElementById('cfgGross');
+const cfgProcessed = document.getElementById('cfgProcessed');
+const cfgRepeat  = document.getElementById('cfgRepeat');
+const cfgManualTotal = document.getElementById('cfgManualTotal');
+const cfgLastDay = document.getElementById('cfgLastDay');
+const cfgAov     = document.getElementById('cfgAov');
+
+openCfg.addEventListener('click', ()=>{
+  cfgGross.value = state.cfg.grossBase30;
+  cfgProcessed.value = state.cfg.processedPct;
+  cfgRepeat.value = state.cfg.repeatPct;
+  cfgAov.value = state.cfg.aov;
+
+  cfgManualTotal.value = (state.overrides.totalPeriod ?? '');
+  cfgLastDay.value = (state.overrides.lastDayTotal ?? '');
+
+  if(state.range){
+    cfgFrom.value = state.range.from.toISOString().split('T')[0];
+    const to = state.range.to;
+    const pad = n => String(n).padStart(2,'0');
+    const toStr = `${to.getFullYear()}-${pad(to.getMonth()+1)}-${pad(to.getDate())}T${pad(to.getHours())}:${pad(to.getMinutes())}`;
+    cfgTo.value = toStr;
+  } else {
+    cfgFrom.value = ''; cfgTo.value = '';
+  }
+  drawer.classList.add('open');
+});
+
+closeCfg.addEventListener('click', ()=> drawer.classList.remove('open'));
+
+clearOverrides.addEventListener('click', ()=>{
+  state.overrides.totalPeriod = null;
+  state.overrides.lastDayTotal = null;
+  saveOverrides();
+  cfgManualTotal.value = '';
+  cfgLastDay.value = '';
+});
+
+applyCfg.addEventListener('click', ()=>{
+  const gb = Number(cfgGross.value); if(!isNaN(gb) && gb>=0) state.cfg.grossBase30 = gb;
+  const pp = Number(cfgProcessed.value); if(!isNaN(pp)) state.cfg.processedPct = Math.min(100,Math.max(0,pp));
+  const rp = Number(cfgRepeat.value); if(!isNaN(rp)) state.cfg.repeatPct = Math.min(100,Math.max(0,rp));
+  const av = Number(cfgAov.value); if(!isNaN(av) && av>0) state.cfg.aov = av;
+  saveCfg();
+
+  const manual = cfgManualTotal.value === '' ? null : Math.max(0, Number(cfgManualTotal.value)||0);
+  const last   = cfgLastDay.value === '' ? null : Math.max(0, Number(cfgLastDay.value)||0);
+  state.overrides.totalPeriod = manual;
+  state.overrides.lastDayTotal = last;
+  saveOverrides();
+
+  let from = state.range ? new Date(state.range.from) : null;
+  let to   = state.range ? new Date(state.range.to) : null;
+
+  if(cfgFrom.value){ from = new Date(cfgFrom.value); }
+  if(cfgTo.value){ to = new Date(cfgTo.value.replace(' ', 'T')); }
+
+  if(from && to && from<=to){
+    const label = `${fmt(from)} – ${fmt(to)}`;
+    periodLabel.textContent = label;
+    document.getElementById('from').valueAsDate = from;
+    document.getElementById('to').valueAsDate   = to;
+    applyRange(from,to,label);
+  } else if(state.range){
+    applyRange(state.range.from, state.range.to, state.range.label);
+  }
+
+  drawer.classList.remove('open');
+});
+
+(function init(){
+  const to = new Date(); to.setHours(0,0,0,0);
+  const from = new Date(to); from.setDate(from.getDate()-(30-1));
+  document.getElementById('from').valueAsDate = from;
+  document.getElementById('to').valueAsDate   = to;
+  applyRange(from,to,'Últimos 30 dias');
+})();
+
+document.getElementById('openCfg').addEventListener('click', ()=> drawer.classList.add('open'));
+document.getElementById('closeCfg').addEventListener('click', ()=> drawer.classList.remove('open'));
+</script>
+</body>
+</html>
