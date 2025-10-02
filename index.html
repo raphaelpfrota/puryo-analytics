@@ -167,12 +167,12 @@
     /* Headbars / sticky toolbars in Quick Look */
     .topbar, .toolbar { position: static !important; }
   }
-/* FIX: liberar o drawer no mobile mesmo com os resets anteriores */
+/* FIX FINAL: força o drawer a aparecer no mobile, vencendo #drawer.drawer */
 @media (max-width:1024px){
-  .drawer.open{
+  #drawer.drawer.open{
     display:block !important;
     visibility:visible !important;
-    width:100% !important;     /* ocupa a tela */
+    width:100% !important;
     max-width:unset !important;
   }
 }
