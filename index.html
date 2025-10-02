@@ -167,6 +167,10 @@
     /* Headbars / sticky toolbars in Quick Look */
     .topbar, .toolbar { position: static !important; }
   }
+@media (max-width:1024px){
+  /* garante que o drawer apareça quando aberto */
+  .drawer.open { display:block !important; }
+}
 </style>
 
 <!-- Web App / PWA (opcional para tela cheia ao adicionar à tela inicial) -->
