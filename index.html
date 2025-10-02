@@ -167,9 +167,11 @@
     /* Headbars / sticky toolbars in Quick Look */
     .topbar, .toolbar { position: static !important; }
   }
-@media (max-width:1024px){
-  /* garante que o drawer apareça quando aberto */
-  .drawer.open { display:block !important; }
+@media (max-width: 1024px) {
+  aside.sidebar, nav.nav, .sidebar, .nav { 
+    display:none !important;
+    /* (pode manter as outras linhas aqui se quiser) */
+  }
 }
 </style>
 
